@@ -9,8 +9,9 @@ __pycache__/
 # Generated pipeline artifacts (rebuild with: uv run python pipeline.py all)
 data/processed/
 reports/*
-!reports/README.md
-!reports/README.uk.md
+!reports/README.txt
+!reports/README.uk.txt
+!reports/index.html
 
 # Streamlit
 .streamlit/secrets.toml

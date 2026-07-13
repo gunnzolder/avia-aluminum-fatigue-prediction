@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aluminum Fatigue ML — Report</title>
+<style>
+  :root {
+    --bg: #fafaf7; --surface: #ffffff; --ink: #1f1e1b; --ink-2: #5f5e57;
+    --line: #e4e3dc; --accent: #2a78d6; --accent-2: #1c5cab;
+    --warn-bg: #fdf6e7; --warn-line: #eda100;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a19; --surface: #232322; --ink: #f2f1ea; --ink-2: #c3c2b7;
+      --line: #3a3936; --accent: #3987e5; --accent-2: #86b6ef;
+      --warn-bg: #2b2416; --warn-line: #c98500;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font: 16px/1.6 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg); color: var(--ink); padding: 0 20px 60px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  /* language switching */
+  [data-lang="en"] .uk, [data-lang="uk"] .en { display: none; }
+  .lang-switch { display: flex; gap: 4px; }
+  .lang-switch button {
+    font: inherit; font-size: 14px; padding: 4px 14px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+    border-radius: 999px;
+  }
+  .lang-switch button[aria-pressed="true"] {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+  }
+  header.top {
+    display: flex; justify-content: space-between; align-items: start;
+    gap: 16px; padding: 40px 0 8px; flex-wrap: wrap;
+  }
+  h1 { font-size: 30px; line-height: 1.25; }
+  .subtitle { color: var(--ink-2); max-width: 640px; margin-top: 6px; }
+  h2 { font-size: 21px; margin: 48px 0 6px; }
+  .h2-note { color: var(--ink-2); font-size: 14.5px; margin-bottom: 18px; }
+  /* stat tiles */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 26px 0 8px; }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .stat b { display: block; font-size: 24px; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 13.5px; color: var(--ink-2); line-height: 1.35; display: block; }
+  .banner {
+    background: var(--warn-bg); border-left: 3px solid var(--warn-line);
+    padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 18px 0; font-size: 14.5px;
+  }
+  /* figure gallery */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .gallery.wide { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+  figure { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  figure img { width: 100%; height: auto; border-radius: 6px; display: block; }
+  figcaption { font-size: 13.5px; color: var(--ink-2); padding: 8px 4px 2px; }
+  /* downloads */
+  .files { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  a.file {
+    display: block; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 16px; text-decoration: none; color: inherit;
+  }
+  a.file:hover { border-color: var(--accent); }
+  a.file b { color: var(--accent); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14.5px; }
+  a.file span { display: block; font-size: 13.5px; color: var(--ink-2); margin-top: 4px; }
+  /* methodology */
+  ol.steps { padding-left: 0; list-style: none; counter-reset: step; display: grid; gap: 10px; }
+  ol.steps li {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 13px 16px 13px 54px; position: relative; font-size: 15px;
+  }
+  ol.steps li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 16px; top: 13px; width: 26px; height: 26px;
+    border-radius: 50%; background: var(--accent); color: #fff;
+    font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center;
+  }
+  ol.steps b { display: inline; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.92em;
+         background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line);
+           color: var(--ink-2); font-size: 14px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+
+<header class="top">
+  <div>
+    <h1>
+      <span class="en">Aluminum Fatigue ML — report</span>
+      <span class="uk">Aluminum Fatigue ML — звіт</span>
+    </h1>
+    <p class="subtitle">
+      <span class="en">Machine-learning prediction of Paris law parameters (C, m) and da/dN–ΔK
+        crack-growth curves for aviation aluminum alloys that lack experimental data.</span>
+      <span class="uk">Прогнозування параметрів рівняння Періса (C, m) та кривих росту тріщини
+        da/dN–ΔK для авіаційних алюмінієвих сплавів, що не мають експериментальних даних.</span>
+    </p>
+  </div>
+  <nav class="lang-switch" aria-label="Language">
+    <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+    <button type="button" data-set-lang="uk" aria-pressed="false">УКР</button>
+  </nav>
+</header>
+
+<div class="stats">
+  <div class="stat"><b>2 877</b>
+    <span class="en">da/dN–ΔK points from 49 digitized handbook figures</span>
+    <span class="uk">точок da/dN–ΔK із 49 оцифрованих рисунків довідника</span></div>
+  <div class="stat"><b>196</b>
+    <span class="en">experimental curves fitted, mean r² = 0.995</span>
+    <span class="uk">зафітованих експериментальних кривих, середній r² = 0,995</span></div>
+  <div class="stat"><b>5 → 5</b>
+    <span class="en">training alloys → predicted target alloys</span>
+    <span class="uk">тренувальні сплави → цільові сплави прогнозу</span></div>
+  <div class="stat"><b>3 × 3</b>
+    <span class="en">models × validation schemes, incl. leave-one-alloy-out</span>
+    <span class="uk">моделі × схеми валідації, включно з leave-one-alloy-out</span></div>
+  <div class="stat"><b>87</b>
+    <span class="en">physically impossible source points auto-excluded</span>
+    <span class="uk">фізично неможливих точок джерела вилучено автоматично</span></div>
+</div>
+
+<p class="banner">
+  <span class="en"><b>Disclaimer:</b> predicted curves are research results, not certification
+    values. No airworthiness decisions should be based on them.</span>
+  <span class="uk"><b>Застереження:</b> прогнозні криві — дослідницькі результати, а не
+    сертифікаційні значення. Рішення щодо льотної придатності на них спиратися не можуть.</span>
+</p>
+
+<h2>
+  <span class="en">Predicted Paris curves</span>
+  <span class="uk">Прогнозні криві Періса</span>
+</h2>
+<p class="h2-note">
+  <span class="en">Three models per alloy (Ridge — blue, Random Forest — aqua, SVR — yellow);
+    shaded bands are the q05–q95 spread. Log-log axes, plotted over the applicable ΔK range.</span>
+  <span class="uk">Три моделі для кожного сплаву (Ridge — синій, Random Forest — бірюзовий,
+    SVR — жовтий); заливка — розкид q05–q95. Лог-лог осі, в межах чинного діапазону ΔK.</span>
+</p>
+<div class="gallery">
+  <figure><img src="figures/paris_2219_R0.1.png" alt="Paris curve 2219 R=0.1" loading="lazy">
+    <figcaption>2219, R = 0.1</figcaption></figure>
+  <figure><img src="figures/paris_2219_R0.5.png" alt="Paris curve 2219 R=0.5" loading="lazy">
+    <figcaption>2219, R = 0.5</figcaption></figure>
+  <figure><img src="figures/paris_6061_R0.1.png" alt="Paris curve 6061 R=0.1" loading="lazy">
+    <figcaption>6061, R = 0.1</figcaption></figure>
+  <figure><img src="figures/paris_6061_R0.5.png" alt="Paris curve 6061 R=0.5" loading="lazy">
+    <figcaption>6061, R = 0.5</figcaption></figure>
+  <figure><img src="figures/paris_7049_R0.1.png" alt="Paris curve 7049 R=0.1" loading="lazy">
+    <figcaption>7049, R = 0.1</figcaption></figure>
+  <figure><img src="figures/paris_7049_R0.5.png" alt="Paris curve 7049 R=0.5" loading="lazy">
+    <figcaption>7049, R = 0.5</figcaption></figure>
+  <figure><img src="figures/paris_7150_R0.1.png" alt="Paris curve 7150 R=0.1" loading="lazy">
+    <figcaption>7150, R = 0.1</figcaption></figure>
+  <figure><img src="figures/paris_7150_R0.5.png" alt="Paris curve 7150 R=0.5" loading="lazy">
+    <figcaption>7150, R = 0.5</figcaption></figure>
+  <figure><img src="figures/paris_7175_R0.1.png" alt="Paris curve 7175 R=0.1" loading="lazy">
+    <figcaption>7175, R = 0.1</figcaption></figure>
+  <figure><img src="figures/paris_7175_R0.5.png" alt="Paris curve 7175 R=0.5" loading="lazy">
+    <figcaption>7175, R = 0.5</figcaption></figure>
+</div>
+
+<h2>
+  <span class="en">Model validation</span>
+  <span class="uk">Валідація моделей</span>
+</h2>
+<p class="h2-note">
+  <span class="en">Leave-one-alloy-out: each alloy is predicted by models that never saw it.
+    Random Forest is the only model with positive skill on unseen alloys (R² ≈ 0.29 for log₁₀C);
+    a random split flatters everyone (R² ≈ 0.78) — the gap is itself a key finding. Full numbers
+    in <code>metrics.csv</code>.</span>
+  <span class="uk">Leave-one-alloy-out: кожен сплав прогнозують моделі, що його не бачили.
+    Лише Random Forest має додатну прогностичну здатність на невідомих сплавах (R² ≈ 0,29 для
+    log₁₀C); random split лестить усім (R² ≈ 0,78) — сам цей розрив є ключовим висновком.
+    Повні числа — у <code>metrics.csv</code>.</span>
+</p>
+<div class="gallery wide">
+  <figure><img src="figures/loao_log10_C.png" alt="LOAO predicted vs actual, log10 C" loading="lazy">
+    <figcaption>
+      <span class="en">Predicted vs actual — log₁₀C</span>
+      <span class="uk">Прогноз проти факту — log₁₀C</span>
+    </figcaption></figure>
+  <figure><img src="figures/loao_m.png" alt="LOAO predicted vs actual, m" loading="lazy">
+    <figcaption>
+      <span class="en">Predicted vs actual — exponent m</span>
+      <span class="uk">Прогноз проти факту — показник m</span>
+    </figcaption></figure>
+</div>
+
+<h2>
+  <span class="en">Data coverage</span>
+  <span class="uk">Покриття даними</span>
+</h2>
+<p class="h2-note">
+  <span class="en">Alloys with static properties but no da/dN curves (2219, 6061, 7049, 7150,
+    7175) are the prediction targets.</span>
+  <span class="uk">Сплави зі статичними властивостями, але без кривих da/dN (2219, 6061, 7049,
+    7150, 7175) — цільові для прогнозу.</span>
+</p>
+<div class="gallery wide">
+  <figure><img src="figures/coverage_matrix.png" alt="Data coverage by alloy" loading="lazy">
+    <figcaption>
+      <span class="en">Counts of available data by alloy and kind</span>
+      <span class="uk">Кількість наявних даних за сплавами та типами</span>
+    </figcaption></figure>
+</div>
+
+<h2>
+  <span class="en">Downloads</span>
+  <span class="uk">Завантаження</span>
+</h2>
+<p class="h2-note">
+  <span class="en">Full column-by-column descriptions are in README.txt / README.uk.txt.</span>
+  <span class="uk">Повні описи кожної колонки — у README.uk.txt / README.txt.</span>
+</p>
+<div class="files">
+  <a class="file" href="predictions.xlsx" download><b>predictions.xlsx</b>
+    <span class="en">Predicted Paris parameters per alloy/R/model with spread bands and applicability ranges</span>
+    <span class="uk">Прогнозні параметри Періса за сплавом/R/моделлю зі смугами розкиду та діапазонами чинності</span></a>
+  <a class="file" href="ai_ready_dataset.xlsx" download><b>ai_ready_dataset.xlsx</b>
+    <span class="en">Converted dataset in the AI-Ready multi-sheet structure</span>
+    <span class="uk">Конвертований датасет у багатоаркушевій структурі AI-Ready</span></a>
+  <a class="file" href="metrics.csv" download><b>metrics.csv</b>
+    <span class="en">Cross-validation metrics per split scheme, model, and target</span>
+    <span class="uk">Метрики крос-валідації за схемою, моделлю та ціллю</span></a>
+  <a class="file" href="coverage_matrix.csv" download><b>coverage_matrix.csv</b>
+    <span class="en">Data coverage by alloy</span>
+    <span class="uk">Покриття даними за сплавами</span></a>
+  <a class="file" href="fit_crosscheck.csv" download><b>fit_crosscheck.csv</b>
+    <span class="en">Our Paris exponents vs the handbook's published fits</span>
+    <span class="uk">Наші показники Періса проти опублікованих у довіднику</span></a>
+  <a class="file" href="data_quality.txt" download><b>data_quality.txt</b>
+    <span class="en">Conversion log: missing values, duplicates, excluded points</span>
+    <span class="uk">Журнал конвертації: пропуски, дублікати, вилучені точки</span></a>
+  <a class="file" href="README.txt" download><b>README.txt</b>
+    <span class="en">Methodology and file guide (English)</span>
+    <span class="uk">Методологія та довідник файлів (англійською)</span></a>
+  <a class="file" href="README.uk.txt" download><b>README.uk.txt</b>
+    <span class="en">Methodology and file guide (Ukrainian)</span>
+    <span class="uk">Методологія та довідник файлів (українською)</span></a>
+</div>
+
+<h2>
+  <span class="en">How the calculation works</span>
+  <span class="uk">Як працює розрахунок</span>
+</h2>
+<ol class="steps">
+  <li>
+    <span class="en"><b>Convert.</b> The digitized crack-growth handbook is parsed into a tidy
+      table of (ΔK, da/dN) points; alloy metadata is recovered from chart titles embedded in the
+      workbook, and the book's own NASGRO/Walker coefficients are harvested for cross-checking.</span>
+    <span class="uk"><b>Конвертація.</b> Оцифрований довідник розбирається в охайну таблицю
+      точок (ΔK, da/dN); метадані сплавів відновлюються із заголовків графіків у файлі, а
+      опубліковані коефіцієнти NASGRO/Walker зчитуються для перехресної перевірки.</span>
+  </li>
+  <li>
+    <span class="en"><b>Validate.</b> Points must satisfy ΔK &gt; 0, da/dN &gt; 0 and the
+      physical bound Kmax = ΔK/(1−R) ≤ 200 ksi·√in; violations (source digitization errors)
+      are excluded and reported.</span>
+    <span class="uk"><b>Валідація.</b> Точки мають задовольняти ΔK &gt; 0, da/dN &gt; 0 і
+      фізичне обмеження Kmax = ΔK/(1−R) ≤ 200 ksi·√in; порушення (помилки оцифрування джерела)
+      вилучаються та фіксуються.</span>
+  </li>
+  <li>
+    <span class="en"><b>Fit.</b> Each experimental curve is fitted to the Paris law
+      da/dN = C·(ΔK)ᵐ by log-log least squares, iteratively trimming near-threshold and
+      fast-fracture tails.</span>
+    <span class="uk"><b>Фітинг.</b> Кожна крива фітується рівнянням Періса da/dN = C·(ΔK)ᵐ
+      методом найменших квадратів у лог-лог координатах з ітеративним відсіканням приграничних
+      ділянок.</span>
+  </li>
+  <li>
+    <span class="en"><b>Train.</b> Ridge, Random Forest, and SVR learn (log₁₀C, m) from alloy
+      static properties + R ratio, evaluated by random, group, and leave-one-alloy-out
+      cross-validation.</span>
+    <span class="uk"><b>Тренування.</b> Ridge, Random Forest і SVR вивчають (log₁₀C, m) зі
+      статичних властивостей сплаву + R-відношення; оцінювання — random, group та
+      leave-one-alloy-out крос-валідація.</span>
+  </li>
+  <li>
+    <span class="en"><b>Predict.</b> Models predict (C, m) for each target alloy at the requested
+      R ratios; uncertainty is a q05–q95 spread band (per-tree quantiles / bootstrap), not a
+      calibrated confidence interval.</span>
+    <span class="uk"><b>Прогноз.</b> Моделі прогнозують (C, m) для кожного цільового сплаву за
+      заданих R-відношень; невизначеність — смуга розкиду q05–q95 (квантилі по деревах /
+      bootstrap), не калібрований довірчий інтервал.</span>
+  </li>
+  <li>
+    <span class="en"><b>Physics audit.</b> Inputs and predictions are checked for positivity,
+      monotonicity, and Paris-exponent plausibility (PASS / WARN / FAIL); failed curves are
+      excluded from training.</span>
+    <span class="uk"><b>Фізичний аудит.</b> Вхідні дані та прогнози перевіряються на додатність,
+      монотонність і правдоподібність показника Періса (PASS / WARN / FAIL); криві з FAIL
+      виключаються з тренування.</span>
+  </li>
+</ol>
+
+<footer>
+  <span class="en">Generated by the
+    <a href="https://github.com/gunnzolder/avia-aluminum-fatigue-prediction">avia-aluminum-fatigue-prediction</a>
+    pipeline (<code>uv run python pipeline.py all</code>). Figures reflect the default targets in
+    <code>targets.yaml</code>; regenerate after changing them.</span>
+  <span class="uk">Згенеровано пайплайном
+    <a href="https://github.com/gunnzolder/avia-aluminum-fatigue-prediction">avia-aluminum-fatigue-prediction</a>
+    (<code>uv run python pipeline.py all</code>). Рисунки відповідають типовим цілям у
+    <code>targets.yaml</code>; після їх зміни перегенеруйте звіт.</span>
+</footer>
+
+</main>
+<script>
+  const html = document.documentElement;
+  function setLang(lang) {
+    html.dataset.lang = lang;
+    html.lang = lang;
+    try { localStorage.setItem("afml-lang", lang); } catch (e) {}
+    document.querySelectorAll("[data-set-lang]").forEach(btn =>
+      btn.setAttribute("aria-pressed", String(btn.dataset.setLang === lang)));
+  }
+  document.querySelectorAll("[data-set-lang]").forEach(btn =>
+    btn.addEventListener("click", () => setLang(btn.dataset.setLang)));
+  let saved = null;
+  try { saved = localStorage.getItem("afml-lang"); } catch (e) {}
+  setLang(saved || (navigator.language && navigator.language.startsWith("uk") ? "uk" : "en"));
+</script>
+</body>
+</html>

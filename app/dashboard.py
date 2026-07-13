@@ -255,8 +255,8 @@ with tab_downloads:
             type="primary",
         )
         st.caption(
-            "The archive includes README.md / README.uk.md explaining the calculation "
-            "and every file's contents."
+            "The archive includes index.html (visual overview) and README.txt / "
+            "README.uk.txt explaining the calculation and every file's contents."
         )
 
         st.subheader("Individual files")
