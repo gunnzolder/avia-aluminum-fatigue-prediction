@@ -6,8 +6,15 @@ Requires pipeline outputs:  uv run python pipeline.py all
 
 from __future__ import annotations
 
-import io
 import os
+
+# pyarrow's bundled mimalloc allocator segfaults in threaded use (observed on
+# macOS arm64 and Streamlit Community Cloud, pyarrow 25.0: mi_thread_init race).
+# The env var must be set BEFORE libarrow loads — pyarrow is imported lazily, so
+# this line must stay above every other import.
+os.environ.setdefault("ARROW_DEFAULT_MEMORY_POOL", "system")
+
+import io
 import subprocess
 import sys
 import zipfile
@@ -18,9 +25,7 @@ import pandas as pd
 import pyarrow as pa
 import streamlit as st
 
-# pyarrow's bundled mimalloc segfaults on macOS arm64 when Streamlit serializes
-# DataFrames on worker threads (mi_thread_init race, see crash reports). Route
-# all Arrow allocations through the OS allocator instead.
+# Second line of defense in case libarrow was already loaded with mimalloc.
 pa.set_memory_pool(pa.system_memory_pool())
 
 try:

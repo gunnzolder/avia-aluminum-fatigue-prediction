@@ -11,12 +11,16 @@ Usage:
 
 from __future__ import annotations
 
+import os
+
+# Avoid pyarrow's bundled mimalloc: it segfaults intermittently in threaded use
+# (same fix as app/dashboard.py). Must be set before libarrow loads.
+os.environ.setdefault("ARROW_DEFAULT_MEMORY_POOL", "system")
+
 import sys
 
 import pyarrow as pa
 
-# Avoid pyarrow's bundled mimalloc: it segfaults intermittently on macOS arm64
-# in threaded use (same fix as app/dashboard.py).
 pa.set_memory_pool(pa.system_memory_pool())
 
 from afml.pipeline_steps import STEPS, run_all
