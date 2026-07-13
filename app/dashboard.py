@@ -7,6 +7,9 @@ Requires pipeline outputs:  uv run python pipeline.py all
 from __future__ import annotations
 
 import io
+import os
+import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
@@ -34,27 +37,44 @@ from afml.export import applicability_range
 st.set_page_config(page_title="Aluminum Fatigue ML", layout="wide")
 
 
+def _render_figures_isolated(timeout: int = 600) -> bool:
+    """Render PNG figures in a subprocess. kaleido drives a Chromium binary and
+    can crash natively (observed: SIGSEGV on Streamlit Community Cloud) — in a
+    subprocess that only fails the render instead of killing the app."""
+    code = (
+        "import pyarrow as pa; pa.set_memory_pool(pa.system_memory_pool()); "
+        "from afml import pipeline_steps; pipeline_steps.step_export(include_figures=True)"
+    )
+    env = {**os.environ, "ARROW_DEFAULT_MEMORY_POOL": "system"}
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", code], capture_output=True, timeout=timeout, env=env
+        )
+        return result.returncode == 0
+    except subprocess.TimeoutExpired:
+        return False
+
+
 def _export_with_chrome_fallback() -> bool:
-    """Export report tables + figures. kaleido needs a Chromium binary; hosted
-    containers may lack one — fall back to kaleido's own headless Chrome, then
-    to tables-only. Returns True when figures were rendered."""
+    """Export report tables in-process (safe), then figures in an isolated
+    subprocess — retrying once after fetching kaleido's own headless Chrome.
+    Returns True when figures were rendered."""
     from afml import pipeline_steps
 
-    try:
-        pipeline_steps.step_export(include_figures=True)
+    pipeline_steps.step_export(include_figures=False)
+    if _render_figures_isolated():
         return True
-    except Exception:
-        try:
-            import kaleido
+    try:
+        import kaleido
 
-            st.write("Downloading headless Chrome for figure rendering…")
-            kaleido.get_chrome_sync()
-            pipeline_steps.step_export(include_figures=True)
-            return True
-        except Exception:
-            pipeline_steps.step_export(include_figures=False)
-            st.write("PNG figure export skipped (no Chromium runtime for kaleido)")
-            return False
+        st.write("Downloading headless Chrome for figure rendering…")
+        kaleido.get_chrome_sync()
+    except Exception:
+        pass
+    if _render_figures_isolated():
+        return True
+    st.write("PNG figure export skipped (figure renderer failed on this host)")
+    return False
 
 
 def _bootstrap_if_needed() -> None:
