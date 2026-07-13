@@ -34,6 +34,29 @@ from afml.export import applicability_range
 st.set_page_config(page_title="Aluminum Fatigue ML", layout="wide")
 
 
+def _export_with_chrome_fallback() -> bool:
+    """Export report tables + figures. kaleido needs a Chromium binary; hosted
+    containers may lack one — fall back to kaleido's own headless Chrome, then
+    to tables-only. Returns True when figures were rendered."""
+    from afml import pipeline_steps
+
+    try:
+        pipeline_steps.step_export(include_figures=True)
+        return True
+    except Exception:
+        try:
+            import kaleido
+
+            st.write("Downloading headless Chrome for figure rendering…")
+            kaleido.get_chrome_sync()
+            pipeline_steps.step_export(include_figures=True)
+            return True
+        except Exception:
+            pipeline_steps.step_export(include_figures=False)
+            st.write("PNG figure export skipped (no Chromium runtime for kaleido)")
+            return False
+
+
 def _bootstrap_if_needed() -> None:
     """First run on a fresh clone (e.g. Streamlit Community Cloud): build the
     dataset, models, and report tables from the source workbooks in inbox/."""
@@ -51,25 +74,23 @@ def _bootstrap_if_needed() -> None:
             st.write(label)
             fn()
         st.write("Exporting report tables and figures")
-        try:
-            pipeline_steps.step_export(include_figures=True)
-        except Exception:
-            # kaleido needs a Chromium binary; hosted containers ship without one.
-            # Fetch kaleido's own headless Chrome build and retry.
-            try:
-                import kaleido
-
-                st.write("Downloading headless Chrome for figure rendering…")
-                kaleido.get_chrome_sync()
-                pipeline_steps.step_export(include_figures=True)
-            except Exception:
-                pipeline_steps.step_export(include_figures=False)
-                st.write("PNG figure export skipped (no Chromium runtime for kaleido)")
+        _export_with_chrome_fallback()
         status.update(label="Dataset and models ready", state="complete", expanded=False)
     st.rerun()
 
 
+@st.cache_resource
+def _heal_missing_figures() -> bool:
+    """Data may outlive the code that produced it (hosted containers keep the
+    working dir across code updates). If figures are absent while predictions
+    exist, render them once per server process."""
+    if any(Path("reports/figures").glob("*.png")):
+        return True
+    return _export_with_chrome_fallback()
+
+
 _bootstrap_if_needed()
+_heal_missing_figures()
 
 
 @st.cache_data
