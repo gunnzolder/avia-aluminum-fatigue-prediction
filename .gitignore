@@ -1,0 +1,20 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Generated pipeline artifacts (rebuild with: uv run python pipeline.py all)
+data/processed/
+reports/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS / tooling
+.DS_Store
+.agents/
+.claude/settings.local.json
+.claude/skills/

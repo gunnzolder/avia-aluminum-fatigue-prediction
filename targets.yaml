@@ -1,0 +1,17 @@
+# Target alloys for fatigue-characteristic prediction.
+#
+# Selected from the coverage matrix (reports/coverage_matrix.csv): each has
+# static/mechanical properties in the AI-Ready dataset but NO da/dN-ΔK curves
+# in the crack-growth database, so their Paris parameters must be predicted
+# from the other alloys. Edit this list to change the prediction targets.
+#
+# Training pool (has curves): 2014, 2024, 7050, 7075, 7475
+target_alloys:
+  - "2219"
+  - "6061"
+  - "7049"
+  - "7150"
+  - "7175"
+
+# R ratios at which to generate predicted curves for each target.
+predict_at_R: [0.1, 0.5]
