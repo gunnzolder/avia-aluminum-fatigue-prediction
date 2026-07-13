@@ -20,11 +20,47 @@ import streamlit as st
 # all Arrow allocations through the OS allocator instead.
 pa.set_memory_pool(pa.system_memory_pool())
 
-from afml import viz
+try:
+    from afml import viz
+except ImportError:  # hosted platforms may install deps without the project itself
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+    from afml import viz
+
 from afml.convert import PROCESSED, load
 from afml.export import applicability_range
 
 st.set_page_config(page_title="Aluminum Fatigue ML", layout="wide")
+
+
+def _bootstrap_if_needed() -> None:
+    """First run on a fresh clone (e.g. Streamlit Community Cloud): build the
+    dataset, models, and report tables from the source workbooks in inbox/."""
+    if (PROCESSED / "predictions.parquet").exists():
+        return
+    from afml import pipeline_steps
+
+    with st.status("First run: building dataset and models (~2–5 min)…", expanded=True) as status:
+        for label, fn in [
+            ("Converting source workbooks", pipeline_steps.step_convert),
+            ("Fitting Paris curves + physics audit", pipeline_steps.step_fit),
+            ("Training models (3 split schemes)", pipeline_steps.step_train),
+            ("Predicting target alloys + uncertainty", pipeline_steps.step_predict),
+        ]:
+            st.write(label)
+            fn()
+        st.write("Exporting report tables")
+        try:
+            pipeline_steps.step_export(include_figures=True)
+        except Exception:
+            pipeline_steps.step_export(include_figures=False)
+            st.write("PNG figure export skipped (no Chromium runtime for kaleido)")
+        status.update(label="Dataset and models ready", state="complete", expanded=False)
+    st.rerun()
+
+
+_bootstrap_if_needed()
 
 
 @st.cache_data
