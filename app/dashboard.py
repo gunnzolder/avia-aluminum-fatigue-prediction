@@ -50,12 +50,21 @@ def _bootstrap_if_needed() -> None:
         ]:
             st.write(label)
             fn()
-        st.write("Exporting report tables")
+        st.write("Exporting report tables and figures")
         try:
             pipeline_steps.step_export(include_figures=True)
         except Exception:
-            pipeline_steps.step_export(include_figures=False)
-            st.write("PNG figure export skipped (no Chromium runtime for kaleido)")
+            # kaleido needs a Chromium binary; hosted containers ship without one.
+            # Fetch kaleido's own headless Chrome build and retry.
+            try:
+                import kaleido
+
+                st.write("Downloading headless Chrome for figure rendering…")
+                kaleido.get_chrome_sync()
+                pipeline_steps.step_export(include_figures=True)
+            except Exception:
+                pipeline_steps.step_export(include_figures=False)
+                st.write("PNG figure export skipped (no Chromium runtime for kaleido)")
         status.update(label="Dataset and models ready", state="complete", expanded=False)
     st.rerun()
 
