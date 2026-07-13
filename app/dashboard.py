@@ -6,6 +6,8 @@ Requires pipeline outputs:  uv run python pipeline.py all
 
 from __future__ import annotations
 
+import io
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -39,8 +41,8 @@ def _require(table: str) -> pd.DataFrame | None:
 
 st.title("Aluminum Fatigue ML — Paris curve prediction")
 
-tab_cov, tab_curves, tab_models, tab_audit = st.tabs(
-    ["Coverage", "Curves", "Models", "Physics audit"]
+tab_cov, tab_curves, tab_models, tab_audit, tab_downloads = st.tabs(
+    ["Coverage", "Curves", "Models", "Physics audit", "Downloads"]
 )
 
 with tab_cov:
@@ -51,7 +53,7 @@ with tab_cov:
         cov = pd.read_csv(cov_path, dtype={"alloy": str})
         left, right = st.columns([3, 2])
         with left:
-            st.plotly_chart(viz.coverage_heatmap(cov), use_container_width=True)
+            st.plotly_chart(viz.coverage_heatmap(cov), width="stretch")
         with right:
             st.subheader("Coverage table")
             st.dataframe(cov, hide_index=True, height=420)
@@ -94,7 +96,7 @@ with tab_curves:
                 name=row["curve_id"], showlegend=False,
                 hovertemplate=f"{row['curve_id']}: C={row['C']:.2e}, m={row['m']:.2f}<extra></extra>",
             )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         st.subheader("Fitted Paris parameters")
         show_cols = ["curve_id", "R_ratio", "C", "m", "r2", "dK_min", "dK_max", "n_points_used", "train_ok"]
@@ -121,9 +123,9 @@ with tab_models:
 
         c1, c2 = st.columns(2)
         with c1:
-            st.plotly_chart(viz.loao_scatter(loao, "log10_C"), use_container_width=True)
+            st.plotly_chart(viz.loao_scatter(loao, "log10_C"), width="stretch")
         with c2:
-            st.plotly_chart(viz.loao_scatter(loao, "m"), use_container_width=True)
+            st.plotly_chart(viz.loao_scatter(loao, "m"), width="stretch")
 
         st.subheader("Predicted Paris curves for target alloys")
         intervals = _load("prediction_intervals")
@@ -140,7 +142,7 @@ with tab_models:
                 intervals=iv,
                 dk_range=applicability_range(fits, alloy),
             ),
-            use_container_width=True,
+            width="stretch",
         )
         tbl = sel.copy()
         tbl["C_pred"] = 10.0 ** tbl["log10_C_pred"]
@@ -172,3 +174,66 @@ with tab_audit:
                     flagged[["curve_id", "alloy", "delta_K_ksi_sqrt_in", "dadN_in_per_cycle", "flag_reason"]],
                     hide_index=True,
                 )
+
+REPORT_FILES = [
+    ("predictions.xlsx", "Predicted Paris parameters per alloy/R/model, with spread bands and applicability ranges"),
+    ("ai_ready_dataset.xlsx", "Converted dataset in the AI-Ready multi-sheet structure"),
+    ("metrics.csv", "Cross-validation metrics per split scheme, model, and target"),
+    ("coverage_matrix.csv", "Data coverage by alloy"),
+    ("fit_crosscheck.csv", "Our Paris exponents vs the handbook's published fits"),
+    ("data_quality.txt", "Conversion log: missing values, duplicates, excluded points"),
+]
+
+_MIME = {
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".csv": "text/csv",
+    ".txt": "text/plain",
+    ".md": "text/markdown",
+}
+
+
+def _report_zip(reports_dir: Path) -> bytes:
+    """Zip every report file, the file-guide READMEs, and the figures."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in sorted(reports_dir.rglob("*")):
+            if path.is_file():
+                zf.write(path, path.relative_to(reports_dir))
+    return buf.getvalue()
+
+
+with tab_downloads:
+    reports_dir = Path("reports")
+    available = [(n, d) for n, d in REPORT_FILES if (reports_dir / n).exists()]
+    if not available:
+        st.warning("No report files found — run `uv run python pipeline.py all` first.")
+    else:
+        st.subheader("Full report")
+        n_figures = len(list((reports_dir / "figures").glob("*.png"))) if (reports_dir / "figures").exists() else 0
+        st.download_button(
+            f"Download everything ({len(available)} files + {n_figures} figures, zip)",
+            data=_report_zip(reports_dir),
+            file_name="aluminum_fatigue_report.zip",
+            mime="application/zip",
+            icon=":material/folder_zip:",
+            type="primary",
+        )
+        st.caption(
+            "The archive includes README.md / README.uk.md explaining the calculation "
+            "and every file's contents."
+        )
+
+        st.subheader("Individual files")
+        for name, description in available:
+            path = reports_dir / name
+            col_btn, col_desc = st.columns([1, 2], vertical_alignment="center")
+            col_btn.download_button(
+                name,
+                data=path.read_bytes(),
+                file_name=name,
+                mime=_MIME.get(path.suffix, "application/octet-stream"),
+                icon=":material/download:",
+                key=f"dl_{name}",
+                width="stretch",
+            )
+            col_desc.caption(description)
